@@ -266,5 +266,7 @@ func (d *Display) ConfirmAction(prompt string) bool {
 // OutputKeyOnly outputs just the derived key to stdout for scripting purposes.
 // This outputs the key in base64 format to stdout, suitable for piping to other tools.
 func (d *Display) OutputKeyOnly(result *types.HMACResult) {
+	fmt.Println("----- BEGIN DERIVED KEY -----")
 	fmt.Println(base64.StdEncoding.EncodeToString(result.Secret))
+	fmt.Println("----- END DERIVED KEY -----")
 }
