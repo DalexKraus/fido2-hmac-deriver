@@ -39,6 +39,8 @@ type Application struct {
 	cryptoProvider types.CryptoProvider // HMAC secret derivation
 	config         *types.Configuration // Application configuration
 	keyOnly        bool                 // Output only the key to stdout
+	fidoDevice     string               // Specific FIDO device path (optional)
+	pinEnvVar      string               // Environment variable name for PIN (optional)
 }
 
 func NewApplication() *Application {
@@ -69,10 +71,22 @@ func (app *Application) Run() error {
 
 	app.ui.DisplaySuccess(fmt.Sprintf("Found %d FIDO2 device(s)", len(devices)))
 
-	selectedDevice, err := app.deviceMgr.SelectDevice(devices)
-	if err != nil {
-		app.ui.DisplayError(err)
-		return fmt.Errorf("device selection failed: %w", err)
+	// Device selection: use specified device path or interactive selection
+	var selectedDevice *types.DeviceInfo
+	if app.fidoDevice != "" {
+		// Non-interactive mode: select device by path
+		selectedDevice, err = app.deviceMgr.SelectDeviceByPath(devices, app.fidoDevice)
+		if err != nil {
+			app.ui.DisplayError(err)
+			return fmt.Errorf("device selection by path failed: %w", err)
+		}
+	} else {
+		// Interactive mode: let user select device
+		selectedDevice, err = app.deviceMgr.SelectDevice(devices)
+		if err != nil {
+			app.ui.DisplayError(err)
+			return fmt.Errorf("device selection failed: %w", err)
+		}
 	}
 
 	app.ui.DisplayProgress("Validating device accessibility...")
@@ -81,10 +95,22 @@ func (app *Application) Run() error {
 		return fmt.Errorf("device validation failed: %w", err)
 	}
 
-	pin := app.ui.GetPIN("Enter your FIDO2 device PIN: ")
-	if pin == "" {
-		app.ui.DisplayError(fmt.Errorf("PIN is required for FIDO2 operations"))
-		return fmt.Errorf("no PIN provided")
+	// PIN retrieval: use environment variable or interactive input
+	var pin string
+	if app.pinEnvVar != "" {
+		// Non-interactive mode: get PIN from environment variable
+		pin, err = app.ui.GetPINFromEnvironment(app.pinEnvVar)
+		if err != nil {
+			app.ui.DisplayError(err)
+			return fmt.Errorf("PIN retrieval from environment failed: %w", err)
+		}
+	} else {
+		// Interactive mode: prompt user for PIN
+		pin = app.ui.GetPIN("Enter your FIDO2 device PIN: ")
+		if pin == "" {
+			app.ui.DisplayError(fmt.Errorf("PIN is required for FIDO2 operations"))
+			return fmt.Errorf("no PIN provided")
+		}
 	}
 
 	app.ui.DisplayProgress("Validating configuration...")
@@ -114,11 +140,15 @@ func (app *Application) Run() error {
 func main() {
 	// Parse CLI flags
 	keyOnly := flag.Bool("key-only", false, "Output only the derived key to stdout (useful for scripting)")
+	fidoDevice := flag.String("fido-device", "", "Specify FIDO device path (e.g., /dev/hidraw10) to skip device selection")
+	pinEnvVar := flag.String("pin-environment-variable", "", "Environment variable name containing the PIN (for non-interactive mode)")
 	flag.Parse()
 
 	// Create the application instance
 	app := NewApplication()
 	app.keyOnly = *keyOnly
+	app.fidoDevice = *fidoDevice
+	app.pinEnvVar = *pinEnvVar
 
 	// Run the application and handle any errors
 	if err := app.Run(); err != nil {
@@ -126,7 +156,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	os.Exit(0)
+	// Success - exit with code 0 (this is implicit, but explicit for clarity)
 }
 
 func init() {}

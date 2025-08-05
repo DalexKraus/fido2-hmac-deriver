@@ -130,6 +130,29 @@ func (d *Display) GetPIN(prompt string) string {
 	return strings.TrimSpace(string(pinBytes))
 }
 
+// GetPINFromEnvironment retrieves the PIN from the specified environment variable.
+// Returns the PIN value or an error if the environment variable is not set or empty.
+func (d *Display) GetPINFromEnvironment(envVarName string) (string, error) {
+	if envVarName == "" {
+		return "", fmt.Errorf("environment variable name cannot be empty")
+	}
+
+	pin := os.Getenv(envVarName)
+	if pin == "" {
+		return "", fmt.Errorf("environment variable '%s' is not set or is empty\n\nPlease set the environment variable:\n"+
+			"  export %s=\"your_pin_here\"\n"+
+			"Or run without --pin-environment-variable to enter PIN interactively", envVarName, envVarName)
+	}
+
+	pin = strings.TrimSpace(pin)
+	if pin == "" {
+		return "", fmt.Errorf("environment variable '%s' contains only whitespace", envVarName)
+	}
+
+	d.success.Printf("PIN retrieved from environment variable '%s'\n", envVarName)
+	return pin, nil
+}
+
 // DisplayProgress shows a progress message during long-running operations.
 // This helps users understand what the application is doing.
 func (d *Display) DisplayProgress(message string) {

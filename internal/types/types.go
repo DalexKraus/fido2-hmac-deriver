@@ -50,6 +50,10 @@ type DeviceManager interface {
 	// Takes a slice of available devices and returns the selected device or an error.
 	SelectDevice(devices []*DeviceInfo) (*DeviceInfo, error)
 
+	// SelectDeviceByPath finds and returns a device with the specified path.
+	// This allows bypassing interactive device selection when the path is known.
+	SelectDeviceByPath(devices []*DeviceInfo, path string) (*DeviceInfo, error)
+
 	// ValidateDevice checks if a device is still accessible and functional.
 	// Returns an error if the device is no longer accessible.
 	ValidateDevice(device *DeviceInfo) error
@@ -86,6 +90,10 @@ type UIProvider interface {
 	// GetPIN prompts the user to enter their FIDO2 device PIN securely.
 	// The PIN input should be hidden from the terminal for security.
 	GetPIN(prompt string) string
+
+	// GetPINFromEnvironment retrieves the PIN from the specified environment variable.
+	// Returns the PIN value or an error if the environment variable is not set or empty.
+	GetPINFromEnvironment(envVarName string) (string, error)
 
 	// DisplayProgress shows a progress message during long-running operations.
 	DisplayProgress(message string)
